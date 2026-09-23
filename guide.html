@@ -16,6 +16,9 @@
 }
 *,*::before,*::after{box-sizing:border-box}
 html{-webkit-text-size-adjust:100%}
+/* no stray one-character lines: break Japanese at phrase boundaries and balance the last line */
+body{word-break:auto-phrase;line-break:strict;text-wrap:pretty}
+.key,code,th{word-break:keep-all}
 body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--font-ui);font-size:16px;line-height:1.8;padding-inline:max(16px, env(safe-area-inset-left,0px)) max(16px, env(safe-area-inset-right,0px))}
 main{max-width:640px;margin:0 auto;padding-block:0 48px}
 header{background:var(--ground);margin-inline:calc(-1 * max(16px, env(safe-area-inset-left,0px)));padding:calc(28px + env(safe-area-inset-top,0px)) 20px 26px;display:flex;gap:16px;align-items:center}
@@ -114,7 +117,7 @@ footer{margin-top:40px;font-size:12px;color:var(--soft)}
     </div>
     ホーム画面にできた「合唱リリック」のアイコンから開きます。
   </li>
-  <li><b>楽譜を選ぶ</b>画面上の曲名（最初は「サンプル曲」）をタップ → <span class="key">＋ 楽譜を選ぶ</span> → 練習する曲の楽譜ファイル（.mxl）を選びます。</li>
+  <li><b>楽譜を選ぶ</b>画面上の曲名（最初は「サンプル曲」）をタップ → <span class="key">＋ 楽譜を選ぶ</span> → 練習する曲の楽譜ファイル（.mxl や .musicxml）を選びます。</li>
   <li><b>音源を選ぶ（音源ファイルがある曲だけ）</b>同じ画面の <span class="key">＋ 音源を選ぶ</span> → 同じ曲の音源ファイル（.mp3 や .wav）を選びます。音源がない曲は、アプリが楽譜から作った音（合成音）で再生します。</li>
   <li><b>パートを選ぶ</b>画面右上の <span class="key">パート</span> をタップして、自分のパートを選びます。</li>
   <li><b>▶ で再生</b>あとは再生して、画面を見ながら歌うだけです。</li>
