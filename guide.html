@@ -1,0 +1,190 @@
+<!doctype html>
+<html lang="ja">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>合唱リリック 使い方</title>
+<link rel="icon" href="icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,800&family=Playfair+Display:ital,wght@1,900&family=Zen+Kaku+Gothic+New:wght@500;700&display=swap">
+<style>
+:root{
+  --ground:#83d4dc; --paper:#f7fcfd; --ink:#0d2e3a; --soft:#4a6a74; --line:#d3e9ec; --accent:#d9364a;
+  --font-ui:"Zen Kaku Gothic New",system-ui,-apple-system,"Hiragino Sans","Noto Sans JP",sans-serif;
+  --font-lyric:"Bricolage Grotesque","Avenir Next","Segoe UI",system-ui,sans-serif;
+  --font-dyn:"Playfair Display","Times New Roman",Georgia,serif;
+}
+*,*::before,*::after{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--font-ui);font-size:16px;line-height:1.8;padding-inline:max(16px, env(safe-area-inset-left,0px)) max(16px, env(safe-area-inset-right,0px))}
+main{max-width:640px;margin:0 auto;padding-block:0 48px}
+header{background:var(--ground);margin-inline:calc(-1 * max(16px, env(safe-area-inset-left,0px)));padding:calc(28px + env(safe-area-inset-top,0px)) 20px 26px;display:flex;gap:16px;align-items:center}
+header img{width:64px;height:64px;border-radius:14px;flex:none}
+header h1{margin:0;font-size:22px;line-height:1.35;text-wrap:balance}
+header p{margin:2px 0 0;font-size:13px;color:var(--ink);opacity:.75}
+h2{font-size:19px;margin:36px 0 10px;padding-bottom:6px;border-bottom:2px solid var(--ink);text-wrap:balance}
+h3{font-size:16px;margin:22px 0 6px}
+p{margin:8px 0}
+ul,ol{margin:8px 0;padding-left:1.4em}
+li{margin:4px 0}
+.note{background:#fff;border:1px solid var(--line);border-radius:12px;padding:12px 14px;font-size:14px;margin:12px 0}
+.note b{color:var(--accent)}
+.os{display:grid;gap:12px;margin:12px 0}
+.os section{background:#fff;border:1px solid var(--line);border-radius:12px;padding:12px 14px}
+.os h3{margin:0 0 4px;font-size:15px}
+.os ol{margin:0}
+.key{display:inline-block;border:1px solid var(--ink);border-radius:6px;padding:0 6px;font-size:13px;line-height:1.6;font-weight:700;white-space:nowrap}
+.steps{counter-reset:s;list-style:none;padding:0}
+.steps>li{counter-increment:s;position:relative;padding-left:40px;margin:14px 0}
+.steps>li::before{content:counter(s);position:absolute;left:0;top:2px;width:28px;height:28px;border-radius:50%;background:var(--ink);color:#fff;font-weight:700;font-size:14px;display:grid;place-items:center;line-height:1}
+.steps>li>b:first-child{display:block}
+
+/* screen mock */
+.mock{background:var(--ground);border-radius:14px;padding:12px;margin:14px 0}
+.stage{border:3px solid #fff;border-radius:4px;display:grid;grid-template-columns:1fr 1.2fr 1fr;grid-template-areas:"dyn wedge next" "expr expr time" "dots dots dots" "word word word";gap:6px;padding:10px;position:relative}
+.stage>div{position:relative;display:flex;align-items:center;justify-content:center;min-height:44px}
+.m-dyn{grid-area:dyn;font-family:var(--font-dyn);font-style:italic;font-weight:900;font-size:40px;line-height:1}
+.m-wedge{grid-area:wedge}
+.m-wedge svg{width:90px;height:30px}
+.m-next{grid-area:next}
+.m-next span{border:2px solid rgba(13,46,58,.3);border-radius:999px;padding:2px 12px;display:grid;justify-items:center;line-height:1.1}
+.m-next small{font-size:9px;letter-spacing:.14em;color:var(--accent);font-weight:700}
+.m-next i{font-family:var(--font-dyn);font-weight:900;font-size:24px}
+.m-expr{grid-area:expr;justify-content:flex-start!important;font-family:var(--font-dyn);font-style:italic;font-weight:900;font-size:20px}
+.m-time{grid-area:time;font-size:11px;gap:6px}
+.m-time b{font-family:var(--font-lyric);font-size:16px;line-height:.9;text-align:center}
+.m-dots{grid-area:dots;gap:8px}
+.m-dots i{width:16px;height:16px;border-radius:50%;border:2.5px solid var(--ink);display:block}
+.m-dots i.on{background:var(--ink)}
+.m-dots i.half{border-style:dotted}
+.m-word{grid-area:word;font-family:var(--font-lyric);font-weight:800;font-size:54px;line-height:1.1;min-height:84px!important}
+.m-word span{opacity:.3}
+.pin{position:absolute;top:-6px;left:-4px;width:20px;height:20px;border-radius:50%;background:var(--accent);color:#fff;font:700 11px/20px var(--font-ui);text-align:center;font-style:normal}
+.ctrl{display:grid;grid-template-columns:repeat(5,1fr);align-items:center;justify-items:center;margin-top:10px;color:#fff;font-size:10px;font-weight:700;text-align:center;line-height:1.3}
+.ctrl svg{width:22px;height:22px;display:block;margin:0 auto 2px}
+.ctrl .play{width:46px;height:46px;border-radius:50%;background:#fff;display:grid;place-items:center}
+.ctrl .play svg{width:20px;height:20px;color:var(--ground);margin:0}
+.legend{list-style:none;padding:0;margin:8px 0}
+.legend li{display:grid;grid-template-columns:24px 1fr;gap:8px;align-items:start}
+.legend .n{width:20px;height:20px;border-radius:50%;background:var(--accent);color:#fff;font-size:11px;font-weight:700;display:grid;place-items:center;margin-top:4px}
+table{border-collapse:collapse;width:100%;font-size:14px;margin:8px 0}
+th,td{border-bottom:1px solid var(--line);padding:8px 6px;text-align:left;vertical-align:top}
+th{white-space:nowrap;width:7.5em}
+.open{display:block;margin:18px 0;text-align:center;background:var(--ink);color:#fff;border-radius:12px;padding:14px;font-weight:700;text-decoration:none}
+footer{margin-top:40px;font-size:12px;color:var(--soft)}
+@media print{
+  @page{size:A4;margin:14mm 14mm}
+  body{font-size:11.5pt;padding:0}
+  header{margin:0 0 6mm;border-radius:10px;padding:18px 20px}
+  .open{display:none}
+  h2{break-after:avoid}
+  .mock,.os section,.note,table{break-inside:avoid}
+  html,body{background:#fff}
+  .screen{break-inside:avoid}
+}
+</style>
+
+<main>
+<header>
+  <img src="icon-192.png" alt="">
+  <div>
+    <h1>合唱リリックフラッシュ 使い方</h1>
+    <p>歌詞と音楽記号を、音に合わせてパッと表示する練習アプリです</p>
+  </div>
+</header>
+
+<a class="open" href="./">アプリを開く</a>
+
+<h2>このアプリでできること</h2>
+<ul>
+  <li><b>歌詞のフラッシュ表示</b> … 音が鳴っている間だけ、その単語が大きく出ます。文の全体は見えないので、覚えたかどうかを確かめられます。</li>
+  <li><b>伸ばす長さがわかる</b> … 2拍以上伸ばす音は〇の数で長さを表し、1拍ごとに●に変わります。</li>
+  <li><b>強弱記号・音楽記号</b> … 今の強弱（<i>p</i>、<i>mf</i> など）を常に表示。次の強弱は2小節前から「NEXT」に出ます。クレッシェンド、rit.、フェルマータなども、その間だけ表示されます。</li>
+  <li><b>練習に便利な操作</b> … パートの切り替え、ゆっくり再生、歌い出しへのジャンプ、前奏・間奏のスキップ、メトロノーム。</li>
+  <li><b>歌詞の書き出し</b> … 自分のパートの歌詞をテキストやPDFにできます（翻訳のメモなどに）。</li>
+</ul>
+
+<h2>はじめかた</h2>
+<ol class="steps">
+  <li><b>共有されたURLを開く</b>LINEなどで届いたアプリのURLを、スマホのブラウザ（iPhoneは Safari、Androidは Chrome）で開きます。</li>
+  <li><b>ホーム画面に追加する</b>アイコンからすぐ開けるようになります（1回だけでOK）。
+    <div class="os">
+      <section><h3>iPhone（Safari）</h3><ol><li>画面下の <span class="key">共有</span>（四角から矢印が出たマーク）をタップ</li><li><span class="key">ホーム画面に追加</span> をタップ</li><li>右上の <span class="key">追加</span> をタップ</li></ol></section>
+      <section><h3>Android（Chrome）</h3><ol><li>右上の <span class="key">⋮</span> をタップ</li><li><span class="key">ホーム画面に追加</span>（または <span class="key">アプリをインストール</span>）をタップ</li><li><span class="key">追加</span>／<span class="key">インストール</span> をタップ</li></ol></section>
+    </div>
+    ホーム画面にできた「合唱リリック」のアイコンから開きます。
+  </li>
+  <li><b>楽譜を選ぶ</b>画面上の曲名（最初は「サンプル曲」）をタップ → <span class="key">＋ 楽譜を選ぶ</span> → 練習する曲の楽譜ファイル（.mxl）を選びます。</li>
+  <li><b>音源を選ぶ（音源ファイルがある曲だけ）</b>同じ画面の <span class="key">＋ 音源を選ぶ</span> → 同じ曲の音源ファイル（.mp3 や .wav）を選びます。音源がない曲は、アプリが楽譜から作った音（合成音）で再生します。</li>
+  <li><b>パートを選ぶ</b>画面右上の <span class="key">パート</span> をタップして、自分のパートを選びます。</li>
+  <li><b>▶ で再生</b>あとは再生して、画面を見ながら歌うだけです。</li>
+</ol>
+
+<div class="note"><b>ファイルがスマホに入っていないとき</b><br>
+楽譜・音源は合唱団のGoogleドライブにあります。ファイルを選ぶ画面で「Googleドライブ」を選べば、そのまま開けます。<br>
+iPhoneでドライブが出てこない場合は、Googleドライブのアプリでファイルの <span class="key">…</span> → <span class="key">アプリで開く</span> → <span class="key">"ファイル"に保存</span> で、いったんiPhoneに保存してから選んでください。</div>
+
+<section class="screen">
+<h2>画面の見かた</h2>
+<div class="mock" aria-label="アプリの画面の例">
+  <div class="stage">
+    <div class="m-dyn"><em class="pin">1</em>p</div>
+    <div class="m-wedge"><em class="pin">2</em><svg viewBox="0 0 90 30" aria-hidden="true"><path d="M86 3L4 15l82 12" fill="none" stroke="#0d2e3a" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+    <div class="m-next"><em class="pin">3</em><span><small>NEXT</small><i>mf</i></span></div>
+    <div class="m-expr"><em class="pin">4</em>&nbsp;&nbsp;&nbsp;poco rit.</div>
+    <div class="m-time"><em class="pin">5</em><b>4<br>―<br>4</b><span>♩ = 60<br>小節 19</span></div>
+    <div class="m-dots"><em class="pin">6</em><i class="half on"></i><i class="on"></i><i class="on"></i><i></i><i></i></div>
+    <div class="m-word"><em class="pin">7</em>an<span>gels</span></div>
+  </div>
+  <div class="ctrl">
+    <div><svg viewBox="0 0 32 32"><rect x="7" y="7" width="3.5" height="18" rx="1.2" fill="currentColor"/><path d="M26 7L13 16l13 9z" fill="currentColor"/></svg>最初</div>
+    <div><svg viewBox="0 0 32 32"><path d="M16 7L4 16l12 9zM28 7L16 16l12 9z" fill="currentColor"/></svg>前の歌い出し</div>
+    <div class="play"><svg viewBox="0 0 32 32"><path d="M10 6l17 10-17 10z" fill="currentColor"/></svg></div>
+    <div><svg viewBox="0 0 32 32"><path d="M4 7l12 9-12 9zM16 7l12 9-12 9z" fill="currentColor"/></svg>次の歌い出し</div>
+    <div><svg viewBox="0 0 32 32"><path d="M12.5 4h7l6 24h-19z" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linejoin="round"/><path d="M16 22L23 8" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/><path d="M9 22h14" stroke="currentColor" stroke-width="2.4"/></svg>メトロノーム</div>
+  </div>
+</div>
+<ul class="legend">
+  <li><span class="n">1</span><span><b>今の強弱</b>。まだ強弱記号が出てきていないところでは何も出ません。</span></li>
+  <li><span class="n">2</span><span><b>クレッシェンド／デクレッシェンド</b>。効果が続いている間だけ出て、線が進み具合に合わせて濃くなります。</span></li>
+  <li><span class="n">3</span><span><b>次の強弱</b>。変わる2小節前から表示されます。</span></li>
+  <li><span class="n">4</span><span><b>発想記号など</b>（rit.、dolce、フェルマータ など）。</span></li>
+  <li><span class="n">5</span><span><b>拍子・テンポ・小節番号</b>。</span></li>
+  <li><span class="n">6</span><span><b>伸ばす長さ</b>。〇の数が拍数で、1拍ごとに●になります。点線の〇は1拍に満たない部分（裏拍から始まる音など）です。</span></li>
+  <li><span class="n">7</span><span><b>歌詞</b>。音が鳴っている間だけ出ます。まだ歌っていない部分は薄く表示されます。</span></li>
+</ul>
+</section>
+
+<h2>ボタンの使いかた</h2>
+<table>
+  <tr><th>最初</th><td>曲の頭にもどります。</td></tr>
+  <tr><th>前の歌い出し</th><td>ひとつ前のフレーズの頭にもどります。歌い出しの直後に押すと、さらにひとつ前へ。</td></tr>
+  <tr><th>▶</th><td>再生／一時停止。</td></tr>
+  <tr><th>次の歌い出し</th><td>次のフレーズの頭へ進みます。長い休みも飛ばせます。</td></tr>
+  <tr><th>メトロノーム</th><td>タップでオン／オフ。1拍目は「カッ」、ほかの拍は「コッ」と鳴ります。</td></tr>
+  <tr><th>×1（速度）</th><td>再生の速さを ×0.5〜×1.25 から選べます。音の高さは変わりません。</td></tr>
+  <tr><th>バー</th><td>動かすと、好きな位置へ移動できます。</td></tr>
+</table>
+
+<h2>設定（右上の つまみのマーク）</h2>
+<table>
+  <tr><th>音量</th><td>自分のパートと、ほかのパートの音量を別々に変えられます。</td></tr>
+  <tr><th>前奏・間奏をとばす</th><td>オンにすると、自分のパートが長く休むところを自動で飛ばします。</td></tr>
+  <tr><th>曲を開いたときのパート</th><td>楽譜を開いたときに最初に表示するパートです。</td></tr>
+  <tr><th>歌詞を書き出す</th><td>今のパートの歌詞を、コピー・テキスト保存・PDF保存できます。</td></tr>
+  <tr><th>音源に合成音も重ねる</th><td>音源を付けた曲で、アプリの合成音も一緒に鳴らします（ふだんはオフ）。</td></tr>
+</table>
+
+<h2>こまったとき</h2>
+<h3>音が出ない（iPhone）</h3>
+<p>本体の横の消音スイッチ（マナーモード）がオンになっていないか確認してください。</p>
+<h3>前に開いた曲が消えた</h3>
+<p>アプリが覚えているのは、最後に開いた1曲（と、その音源）だけです。別の曲は、そのつど楽譜・音源を選び直してください。</p>
+<h3>音源が再生できない</h3>
+<p>mp3 か wav のファイルを選んでください。</p>
+<h3>歌詞が出ない</h3>
+<p>選んでいるパートに歌詞がない可能性があります。右上の「パート」を確認してください。</p>
+
+<footer>合唱リリックフラッシュ ／ 選んだ楽譜・音源はスマホの中だけで使われ、どこにも送信されません。</footer>
+</main>
+</html>
