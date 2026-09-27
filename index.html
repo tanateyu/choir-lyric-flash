@@ -79,7 +79,9 @@ button{cursor:pointer}
 .dyn{grid-area:dyn}
 .time{grid-area:time;justify-content:flex-end;padding-bottom:4px}
 .wedge{grid-area:wedge}
-.beats{grid-area:beats}
+.beats{grid-area:beats;flex-direction:row!important;gap:clamp(10px,2vw,20px)}
+.breath{display:inline-flex;align-items:baseline;gap:4px;font-weight:700;font-size:clamp(11px,1.5vw,14px);color:var(--ink);white-space:nowrap}
+.breath b{font-family:var(--font-dyn);font-style:italic;font-weight:900;font-size:clamp(26px,4vw,40px);line-height:1}
 .lyric{grid-area:lyric;overflow:hidden}
 .next{grid-area:next;justify-content:flex-start;padding-top:4px}
 .cap{font-size:10px;letter-spacing:.14em;color:var(--ink-soft);font-weight:700;text-transform:uppercase}
@@ -209,7 +211,7 @@ input[type=range]{width:100%;accent-color:var(--ink)}
     <div class="cell wedge" id="wedge"></div>
     <div class="cell next"><div class="nextbox off" id="nextBox"><span class="cap">next</span><span class="nextval" id="nextVal"></span></div></div>
     <div class="cell dyn"><span class="dynval" id="dynVal"></span></div>
-    <div class="cell beats"><div class="dots" id="dots"></div></div>
+    <div class="cell beats"><div class="dots" id="dots"></div><span class="breath" id="breath" hidden aria-label="ブレス"><b>V</b>ブレス</span></div>
     <div class="cell time"><div class="sig" id="sig"><span>4</span><i></i><span>4</span></div><div class="info"><div class="tempo" id="tempo"></div><div class="bar" id="barNo"></div></div></div>
     <div class="cell lyric" id="lyricCell"><div class="word" id="word"></div></div>
   </main>
@@ -265,8 +267,8 @@ input[type=range]{width:100%;accent-color:var(--ink)}
     <div class="row"><span class="l">曲を開いたときのパート</span>
       <button class="field" id="defPartBtn" aria-haspopup="menu" aria-expanded="false">ソプラノ<svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><path d="M2 4l4 4 4-4" fill="none" stroke="currentColor" stroke-width="2"/></svg></button>
     </div>
-    <div class="row"><span class="l">歌詞</span>
-      <button class="field" id="lyrOpen">今のパートの歌詞を書き出す<svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><path d="M4 2l4 4-4 4" fill="none" stroke="currentColor" stroke-width="2"/></svg></button>
+    <div class="row"><span class="l">書き出し</span>
+      <button class="field" id="lyrOpen">歌詞と発想記号を書き出す<svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><path d="M4 2l4 4-4 4" fill="none" stroke="currentColor" stroke-width="2"/></svg></button>
     </div>
     <a class="textbtn" id="guideLink" href="guide.html" target="_blank" rel="noopener">使い方を見る</a>
   </div>
@@ -276,6 +278,7 @@ input[type=range]{width:100%;accent-color:var(--ink)}
   <div class="sheet" role="dialog" aria-label="歌詞を書き出す">
     <button class="close" data-close>閉じる</button>
     <h2 id="lyrTitle">歌詞を書き出す</h2>
+    <label class="check" for="lyrExpr"><input type="checkbox" id="lyrExpr" checked>発想記号も書き出す</label>
     <label class="check" for="lyrNums"><input type="checkbox" id="lyrNums">行の頭に小節番号をつける</label>
     <textarea id="lyrText" readonly rows="10" aria-label="書き出す歌詞"></textarea>
     <div class="btns">
@@ -625,14 +628,24 @@ function buildTrack(song, pi, verse){
   }
   // marks belong to the written note they sit on, not to the whole tied chain
   for (const n of p.notes) if (!n.rest && !n.chord && n.voice === voice && n.marks.length) marks.push({ s: n.s, e: n.e, marks: [...new Set(n.marks)] });
+  // a breath mark is announced for the whole note it follows and stays up until the next note begins,
+  // so it is on screen at the very moment the breath is taken (not flashed for one short note)
+  const breaths = [];
+  for (const m of marks) if (m.marks.includes("breath-mark")){
+    const next = line.find(n => n.s >= m.e - EPS);
+    breaths.push({ s: m.s, e: next ? Math.max(m.e, Math.min(next.s, m.e + 2)) : m.e + 1 });
+  }
   // beat circles count each held pitch (tied notes joined), restarting when the pitch moves
   const holds = line.map(n => ({ s: n.s, e: n.e, ticks: beatTicks(n.s, n.e) }));
   const words = []; let w = null;
+  // Words follow the hyphens the way notation software draws them: a syllable marked begin/middle has a
+  // hyphen after it, so the next syllable belongs to the same word whatever its own flag says. (MuseScore can
+  // export "in-fi-" + "nite"(single) after an edit, yet still shows in – fi – nite on screen.)
   for (const sg of segs){
     if (!sg.text) continue;
-    if (sg.syl === "begin"){ w = { syls: [sg] }; words.push(w); }
-    else if (sg.syl === "middle" || sg.syl === "end"){ if (!w){ w = { syls: [] }; words.push(w); } w.syls.push(sg); if (sg.syl === "end") w = null; }
-    else { words.push({ syls: [sg] }); w = null; }
+    if (!w){ w = { syls: [] }; words.push(w); }
+    w.syls.push(sg);
+    if (sg.syl !== "begin" && sg.syl !== "middle") w = null;
   }
   for (const wd of words){
     wd.s = wd.syls[0].s; wd.e = wd.syls[wd.syls.length - 1].e;
@@ -659,7 +672,7 @@ function buildTrack(song, pi, verse){
   };
   const dyns = pick("dyns").slice().sort((a, b) => a.q - b.q);
   const wedges = pick("wedges").slice().sort((a, b) => a.s - b.s);
-  return { segs, holds, words: words.filter(w => w.text), marks, dyns, wedges };
+  return { segs, holds, words: words.filter(w => w.text), marks, breaths, dyns, wedges };
 }
 
 /* ================= time mapping ================= */
@@ -1043,7 +1056,8 @@ function render(){
 
   // expressions + note marks
   const items = song.exprs.filter(e => e.s <= q + EPS && q < e.e - EPS).map(e => "w:" + e.text);
-  for (const m of tr.marks) if (m.s <= q + EPS && q < m.e - EPS) for (const x of m.marks) if (MARK[x]) items.push("m:" + x);
+  for (const m of tr.marks) if (m.s <= q + EPS && q < m.e - EPS) for (const x of m.marks) if (MARK[x] && x !== "breath-mark") items.push("m:" + x);
+  setIf("breath", tr.breaths.some(b => b.s <= q + EPS && q < b.e - EPS) ? "1" : "", v => { $("breath").hidden = !v; });
   setIf("expr", items.join("\u0001"), () => {
     el.expr.innerHTML = "";
     for (const it of items){
@@ -1363,6 +1377,17 @@ function lyricLines(){
     return { verse: v, lines };
   });
 }
+// expression marks (dolce, poco rit., …) in score order; without bar numbers each term is listed once
+function exprLines(){
+  const song = S.song, nums = $("lyrNums").checked, seen = new Set(), out = [];
+  for (const e of song.exprs){
+    const text = e.text.replace(/\s+/g, " ").trim();
+    if (!text) continue;
+    if (!nums){ if (seen.has(text)) continue; seen.add(text); }
+    out.push({ bar: song.numbers[song.order[e.k]], text });
+  }
+  return out;
+}
 function lyricsText(){
   const nums = $("lyrNums").checked, p = S.song.parts[S.part], verses = lyricLines();
   const out = [S.songName, p.name];
@@ -1371,14 +1396,21 @@ function lyricsText(){
     if (verses.length > 1) out.push(`【${vs.verse}番】`);
     for (const l of vs.lines) out.push((nums ? l.bar + "\t" : "") + l.words.join(" "));
   }
+  const ex = $("lyrExpr").checked ? exprLines() : [];
+  if (ex.length){
+    out.push("", "【発想記号】");
+    for (const x of ex) out.push((nums ? x.bar + "\t" : "") + x.text);
+  }
   return out.join("\n");
 }
 function paintLyrics(){
-  $("lyrTitle").textContent = `歌詞を書き出す（${S.song.parts[S.part].name}）`;
+  $("lyrTitle").textContent = `歌詞・発想記号を書き出す（${S.song.parts[S.part].name}）`;
   $("lyrText").value = lyricsText();
 }
 $("lyrOpen").onclick = () => { $("setScrim").hidden = true; paintLyrics(); openSheet("lyrScrim"); };
 $("lyrNums").onchange = paintLyrics;
+$("lyrExpr").checked = store.get("lf.exportExpr", true);
+$("lyrExpr").onchange = e => { store.set("lf.exportExpr", e.target.checked); paintLyrics(); };
 const lyrMsg = t => { $("lyrMsg").textContent = t; };
 $("lyrCopy").onclick = () => {
   const t = $("lyrText").value;
@@ -1417,6 +1449,11 @@ $("lyrPdf").onclick = () => {
   for (const vs of verses){
     if (verses.length > 1) h += `<h2>${esc(vs.verse)}番</h2>`;
     for (const l of vs.lines) h += `<p>${nums ? `<span class="n">${esc(l.bar)}</span>` : ""}${esc(l.words.join(" "))}</p>`;
+  }
+  const ex = $("lyrExpr").checked ? exprLines() : [];
+  if (ex.length){
+    h += `<h2>発想記号</h2>`;
+    for (const x of ex) h += `<p>${nums ? `<span class="n">${esc(x.bar)}</span>` : ""}${esc(x.text)}</p>`;
   }
   pa.innerHTML = h;
   const t = document.title; document.title = `${S.songName}_${S.song.parts[S.part].name}_歌詞`;
