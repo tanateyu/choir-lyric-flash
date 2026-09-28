@@ -131,6 +131,8 @@ button{cursor:pointer}
 .pchip{height:40px;padding:0 14px;border-radius:20px;border:2px solid var(--sheet-ink);background:none;color:var(--sheet-ink);font-weight:700;font-size:14px;word-break:keep-all}
 .pchip[aria-pressed="true"]{background:var(--sheet-ink);color:var(--sheet)}
 .pchip[aria-pressed="false"]{opacity:.55;text-decoration:line-through}
+.pall{display:flex;gap:8px;margin-top:4px}
+.pall .field{padding:0 14px}
 .tbtn{gap:2px;min-width:0;padding:6px 0!important;border-radius:12px}
 .tbtn svg{width:26px;height:26px}
 .tbtn b{font-size:10px;font-weight:700;letter-spacing:0;white-space:nowrap}
@@ -265,7 +267,8 @@ input[type=range]{width:100%;accent-color:var(--ink)}
     <h2>設定</h2>
     <div class="row" id="verseRow" hidden><span class="l">歌詞（何番）</span><button class="field" id="verseBtn" aria-haspopup="menu" aria-expanded="false">1番<svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><path d="M2 4l4 4 4-4" fill="none" stroke="currentColor" stroke-width="2"/></svg></button></div>
     <label class="check" for="synthOn" id="synthRow" hidden><input type="checkbox" id="synthOn">音源に合成音も重ねる</label>
-    <div class="row" id="partsRow"><span class="l">鳴らすパート（タップでオン・オフ）</span><div class="pchips" id="partChips"></div></div>
+    <div class="row" id="partsRow"><span class="l">鳴らすパート（タップでオン・オフ）</span><div class="pchips" id="partChips"></div>
+      <div class="pall"><button type="button" class="field sm" id="partsAllOn">すべてオン</button><button type="button" class="field sm" id="partsAllOff">すべてオフ</button></div></div>
     <div class="row" id="myVolRow"><label class="l" for="myVol">自分のパートの音量</label><input type="range" id="myVol" min="0" max="100" value="90"></div>
     <div class="row" id="otherVolRow"><label class="l" for="otherVol">ほかのパートの音量</label><input type="range" id="otherVol" min="0" max="100" value="35"></div>
     <label class="check" for="autoSkip"><input type="checkbox" id="autoSkip">前奏・間奏をとばす</label>
@@ -1128,7 +1131,11 @@ function applySong(song, id, name){
   const saved = store.get("lf.part." + id, null);
   S.part = saved != null && saved < song.parts.length ? saved : defaultPartIndex(song);
   detachVoice();
-  S.muted = new Set(store.get("lf.mute." + id, []).filter(i => i < song.parts.length));
+  // first open of a song: only the accompaniment and the "part on open" setting sound; later opens keep the viewer's choice
+  const savedMute = store.get("lf.mute." + id, null);
+  const mine = defaultPartIndex(song);
+  S.muted = new Set(savedMute ? savedMute.filter(i => i < song.parts.length)
+    : song.parts.map((p, i) => i).filter(i => song.parts[i].kind === "voice" && i !== mine));
   paintParts();
   S.pos0 = 0;
   selectPart(S.part);
@@ -1178,6 +1185,13 @@ function paintParts(){
     box.appendChild(b);
   });
 }
+function setAllParts(on){
+  S.muted = new Set(on ? [] : S.song.parts.map((p, i) => i));
+  store.set("lf.mute." + S.songId, [...S.muted]);
+  paintParts();
+}
+$("partsAllOn").onclick = () => setAllParts(true);
+$("partsAllOff").onclick = () => setAllParts(false);
 function selectPart(i){
   const keep = S.song ? qOf(nowSec()) : 0;
   const was = S.playing; if (was) pause();
