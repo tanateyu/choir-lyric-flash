@@ -44,7 +44,7 @@ li{margin:4px 0}
 
 /* screen mock */
 .mock{background:var(--ground);border-radius:14px;padding:12px;margin:14px 0}
-.stage{border:3px solid #fff;border-radius:4px;display:grid;grid-template-columns:1fr 1.2fr 1fr;grid-template-areas:"dyn wedge next" "expr expr time" "dots dots dots" "word word word";gap:6px;padding:10px;position:relative}
+.stage{border:3px solid #fff;border-radius:4px;display:grid;grid-template-columns:1fr 1.2fr 1fr;grid-template-areas:"dyn wedge next" "expr expr expr" "dots dots dots" "word word word" "time time time";gap:6px;padding:10px;position:relative}
 .stage>div{position:relative;display:flex;align-items:center;justify-content:center;min-height:44px}
 .m-dyn{grid-area:dyn;font-family:var(--font-dyn);font-style:italic;font-weight:900;font-size:40px;line-height:1}
 .m-wedge{grid-area:wedge}
@@ -54,8 +54,8 @@ li{margin:4px 0}
 .m-next small{font-size:9px;letter-spacing:.14em;color:var(--accent);font-weight:700}
 .m-next i{font-family:var(--font-dyn);font-weight:900;font-size:24px}
 .m-expr{grid-area:expr;justify-content:flex-start!important;font-family:var(--font-dyn);font-style:italic;font-weight:900;font-size:20px}
-.m-time{grid-area:time;font-size:11px;gap:6px}
-.m-time b{font-family:var(--font-lyric);font-size:16px;line-height:.9;text-align:center}
+.m-time{grid-area:time;font-size:11px;gap:12px;justify-content:flex-start!important;padding-left:22px}
+.m-time b{font-family:var(--font-lyric);font-size:14px;line-height:.85;text-align:center}
 .m-dots{grid-area:dots;gap:8px}
 .m-dots i{width:16px;height:16px;border-radius:50%;border:2.5px solid var(--ink);display:block}
 .m-dots i.on{background:var(--ink)}
@@ -134,8 +134,8 @@ iPhoneでドライブが出てこない場合は、Googleドライブのアプ�
     <div class="m-dyn"><em class="pin">1</em>p</div>
     <div class="m-wedge"><em class="pin">2</em><svg viewBox="0 0 90 30" aria-hidden="true"><path d="M86 3L4 15l82 12" fill="none" stroke="#0d2e3a" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
     <div class="m-next"><em class="pin">3</em><span><small>NEXT</small><i>mf</i></span></div>
-    <div class="m-expr"><em class="pin">4</em>&nbsp;&nbsp;&nbsp;poco rit.</div>
-    <div class="m-time"><em class="pin">5</em><b>4<br>―<br>4</b><span>♩ = 60<br>小節 19</span></div>
+    <div class="m-expr"><em class="pin">4</em>&nbsp;&nbsp;&nbsp;With reverence and wonder</div>
+    <div class="m-time"><em class="pin">5</em><b>4<br>―<br>4</b><span>♩ = 60</span><span>小節 19</span></div>
     <div class="m-dots"><em class="pin">6</em><i class="half on"></i><i class="on"></i><i class="on"></i><i></i><i></i></div>
     <div class="m-word"><em class="pin">7</em>an<span>gels</span></div>
   </div>
@@ -151,8 +151,8 @@ iPhoneでドライブが出てこない場合は、Googleドライブのアプ�
   <li><span class="n">1</span><span><b>今の強弱</b>。まだ強弱記号が出てきていないところでは何も出ません。</span></li>
   <li><span class="n">2</span><span><b>クレッシェンド／デクレッシェンド</b>。効果が続いている間だけ出て、線が進み具合に合わせて濃くなります。</span></li>
   <li><span class="n">3</span><span><b>次の強弱</b>。変わる2小節前から表示されます。</span></li>
-  <li><span class="n">4</span><span><b>発想記号など</b>（rit.、dolce、フェルマータ など）。</span></li>
-  <li><span class="n">5</span><span><b>拍子・テンポ・小節番号</b>。</span></li>
+  <li><span class="n">4</span><span><b>発想記号など</b>（rit.、dolce、フェルマータ など）。長い指示は横幅いっぱいに表示されます。</span></li>
+  <li><span class="n">5</span><span><b>拍子・テンポ・小節番号</b>。画面の一番下に小さく出ます（スマホを縦にしたとき）。</span></li>
   <li><span class="n">6</span><span><b>伸ばす長さ</b>。〇の数が拍数で、1拍ごとに●になります。点線の〇は1拍に満たない部分（裏拍から始まる音など）です。ブレス記号（V）もこの横に出ます。息つぎのある音が鳴っている間から、次の音が始まるまで表示されます。</span></li>
   <li><span class="n">7</span><span><b>歌詞</b>。音が鳴っている間だけ出ます。まだ歌っていない部分は薄く表示されます。</span></li>
 </ul>

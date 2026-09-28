@@ -86,8 +86,9 @@ button{cursor:pointer}
 .next{grid-area:next;justify-content:flex-start;padding-top:4px}
 .cap{font-size:10px;letter-spacing:.14em;color:var(--ink-soft);font-weight:700;text-transform:uppercase}
 
-.expr .item{font-family:var(--font-dyn);font-style:italic;font-weight:800;font-size:clamp(18px,3.2vw,34px);line-height:1.1;text-align:left;display:flex;align-items:center;gap:6px}
-.expr .item.mark{font-family:var(--font-ui);font-style:normal;font-weight:700;font-size:clamp(13px,1.8vw,18px)}
+.expr .item{font-family:var(--font-dyn);font-style:italic;font-weight:800;font-size:clamp(18px,3.2vw,34px);line-height:1.15;text-align:left;display:block;max-width:100%;min-width:0;overflow-wrap:break-word;text-wrap:balance}
+.expr .item.long{font-size:clamp(15px,2.4vw,26px)}
+.expr .item.mark{font-family:var(--font-ui);font-style:normal;font-weight:700;font-size:clamp(13px,1.8vw,18px);display:flex;align-items:center;gap:6px}
 .expr .item svg{width:1.6em;height:1em}
 
 .dynval{font-family:var(--font-dyn);font-style:italic;font-weight:900;font-size:clamp(44px,9vw,108px);line-height:1;letter-spacing:-.02em}
@@ -163,12 +164,16 @@ input[type=range]{width:100%;accent-color:var(--ink)}
 /* ---- portrait ---- */
 @media (max-aspect-ratio: 1/1){
   .stage{grid-template-columns:minmax(0,1fr) minmax(0,1.2fr) minmax(0,1fr);
-    grid-template-rows:auto auto auto minmax(0,1fr);
-    grid-template-areas:"dyn wedge next" "expr expr time" "beats beats beats" "lyric lyric lyric"}
-  .expr{flex-direction:row;flex-wrap:wrap;align-items:center;justify-content:flex-start;min-height:34px}
-  .time{display:grid;grid-template-columns:auto 7em;column-gap:10px;justify-content:end;align-items:center;padding-bottom:0}
-  .sig{font-size:24px}
-  .info{margin-top:0;justify-items:start;text-align:left}
+    grid-template-rows:auto auto auto minmax(0,1fr) auto;
+    grid-template-areas:"dyn wedge next" "expr expr expr" "beats beats beats" "lyric lyric lyric" "time time time"}
+  /* expression marks get the full width; time signature / tempo / bar sit as one quiet line at the bottom */
+  .expr{flex-direction:row;flex-wrap:wrap;align-items:center;justify-content:flex-start;column-gap:14px;row-gap:2px;min-height:34px;padding-top:0}
+  .expr .item{font-size:clamp(20px,6.4vw,30px)}
+  .expr .item.long{font-size:clamp(16px,4.8vw,22px)}
+  .time{flex-direction:row;justify-content:flex-start;align-items:center;gap:14px;padding:0}
+  .sig{font-size:17px;line-height:.9}
+  .sig i{height:2px;margin:1px 0}
+  .info{margin-top:0;grid-auto-flow:column;grid-template-columns:6.5em 6em;justify-items:start;text-align:left}
   .dynval{font-size:clamp(40px,14vw,72px)}
   .nextval{font-size:clamp(24px,8vw,40px)}
 }
@@ -1062,7 +1067,7 @@ function render(){
     el.expr.innerHTML = "";
     for (const it of items){
       const d = document.createElement("div");
-      if (it.startsWith("w:")){ d.className = "item"; d.textContent = it.slice(2); }
+      if (it.startsWith("w:")){ const t = it.slice(2); d.className = "item" + (t.length > 34 ? " long" : ""); d.textContent = t; }
       else { const x = it.slice(2); d.className = "item mark"; if (x === "fermata") d.innerHTML = FERMATA_SVG + "<span>フェルマータ</span>"; else d.textContent = MARK[x]; }
       el.expr.appendChild(d);
     }
