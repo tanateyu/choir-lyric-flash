@@ -64,7 +64,7 @@ button{cursor:pointer}
 .chip .t{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .chip.song{flex:1 1 auto;justify-content:flex-start}
 .chip.part{flex:0 1 auto;max-width:48%}
-.chip .lab{font-size:11px;font-weight:500;color:var(--ink-soft);letter-spacing:.06em}
+.chip .lab{white-space:nowrap;flex:none;font-size:11px;font-weight:500;color:var(--ink-soft);letter-spacing:.06em}
 .iconbtn{flex:none;width:40px;height:40px;border-radius:20px;border:0;background:var(--ground-2);display:grid;place-items:center;color:var(--ink)}
 .iconbtn svg{width:20px;height:20px}
 
@@ -159,6 +159,18 @@ button{cursor:pointer}
 .sheet .sub{font-size:12px;color:var(--ink-soft);line-height:1.6;margin:0}
 .big{display:flex;align-items:center;justify-content:center;gap:8px;height:52px;border-radius:12px;border:0;background:var(--ink);color:var(--sheet);font-weight:700;font-size:16px}
 .textbtn{justify-self:start;border:0;background:none;padding:6px 0;font-size:14px;font-weight:700;color:var(--sheet-ink);text-decoration:underline;text-underline-offset:4px;text-decoration-color:var(--line)}
+/* practice list */
+.slist{display:grid;border-top:1px solid var(--line)}
+.srow{display:flex;align-items:center;gap:6px;padding:6px 0;border-bottom:1px solid var(--line);min-width:0}
+.sname{flex:1;min-width:0;display:flex;align-items:center;gap:8px;border:0;background:none;color:var(--sheet-ink);font-weight:700;font-size:15px;text-align:left;padding:8px 0}
+.sname .t{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.srow.cur .sname .t::before{content:"♪ ";color:var(--accent)}
+.sname .tag{flex:none;font-size:11px;font-weight:700;border:1px solid var(--sheet-ink);border-radius:999px;padding:0 7px;line-height:1.6;opacity:.7}
+.sbtn{flex:none;min-width:36px;height:36px;border-radius:8px;border:1px solid var(--line);background:none;color:var(--sheet-ink);font-size:15px;font-weight:700;word-break:keep-all}
+.sbtn:disabled{opacity:.25}
+.sbtn.del{font-size:12px;padding:0 8px;color:var(--ink-soft)}
+.sbtn.del.arm{border-color:var(--accent);color:var(--accent)}
+#bulkMsg{white-space:pre-line}
 input[type=range]{width:100%;accent-color:var(--ink)}
 .close{justify-self:end;border:0;background:none;font-weight:700;color:var(--ink-soft);padding:6px}
 .err{background:var(--accent);color:#fff;border-radius:10px;padding:10px 12px;font-size:13px;line-height:1.6}
@@ -242,16 +254,28 @@ input[type=range]{width:100%;accent-color:var(--ink)}
 <div class="scrim" id="libScrim" hidden>
   <div class="sheet" role="dialog" aria-label="曲">
     <button class="close" data-close>閉じる</button>
-    <h2>曲を開く</h2>
+    <h2>曲を選ぶ</h2>
+    <div class="row">
+      <span class="l">練習リスト</span>
+      <div class="slist" id="songList"></div>
+      <p class="sub" id="listEmpty">楽譜を開いた曲が、ここに並びます。</p>
+      <label class="check" for="contPlay"><input type="checkbox" id="contPlay">連続再生（曲が終わったら次の曲へ）</label>
+      <label class="textbtn" for="bulkIn">楽譜と音源をまとめて登録する</label>
+      <input type="file" id="bulkIn" multiple accept=".mxl,.musicxml,.xml,application/vnd.recordare.musicxml,application/vnd.recordare.musicxml+xml,application/xml,text/xml,audio/*,.mp3,.wav,.m4a" hidden>
+      <p class="sub" id="bulkMsg" hidden></p>
+    </div>
     <div class="row">
       <span class="l">楽譜（.mxl / .musicxml）</span>
       <label class="big" for="fileIn">＋ 楽譜を選ぶ</label>
-      <input type="file" id="fileIn" hidden>
+      <input type="file" id="fileIn" accept=".mxl,.musicxml,.xml,application/vnd.recordare.musicxml,application/vnd.recordare.musicxml+xml,application/xml,text/xml" hidden>
+      <!-- some phones don't know the .mxl type and grey it out under a filter; this picker shows every file -->
+      <label class="textbtn" for="fileInAny">楽譜が選べないときは、すべてのファイルから選ぶ</label>
+      <input type="file" id="fileInAny" hidden>
     </div>
     <div class="row" id="audioAdd" hidden>
       <span class="l">音源（mp3 / wav）</span>
       <label class="big alt" for="audioIn">＋ 音源を選ぶ</label>
-      <input type="file" id="audioIn" hidden>
+      <input type="file" id="audioIn" accept="audio/*,.mp3,.wav,.m4a" hidden>
       <div class="voicerow" id="voiceRow" hidden><span id="voiceName"></span><button class="field sm" id="voiceDel">外す</button></div>
       <p class="sub" id="speedNote" hidden>音源を付けている間は、速度×1で再生します。ゆっくり練習するときは、音源を外すと合成音で速度を変えられます。</p>
       <p class="sub">音源ファイルが無い場合は合成音で再生します。</p>
@@ -754,12 +778,19 @@ function ensureAudio(){
   try { unlockEl && unlockEl.play().catch(() => {}); } catch(e){}
 }
 // route the recording through Web Audio so it shares one clock and output path with the synth
+// One <audio> element serves every song: iOS lets a page keep playing an element the user once started,
+// so swapping its source lets continuous play move to the next song without a fresh tap.
+let voiceEl = null, voiceGain = null;
+function getVoiceEl(){
+  if (!voiceEl){ voiceEl = new Audio(); voiceEl.preload = "auto"; voiceEl.setAttribute("playsinline", ""); }
+  return voiceEl;
+}
 function connectVoice(){
-  if (!ctx || !S.voice || S.voice.gain) return;
+  if (!ctx || !voiceEl || voiceGain) return;
   try {
-    const src = ctx.createMediaElementSource(S.voice.el);
-    S.voice.gain = ctx.createGain();
-    src.connect(S.voice.gain); S.voice.gain.connect(ctx.destination);
+    const src = ctx.createMediaElementSource(voiceEl);
+    voiceGain = ctx.createGain();
+    src.connect(voiceGain); voiceGain.connect(ctx.destination);
   } catch(e){}
 }
 const live = new Set();
@@ -973,7 +1004,7 @@ function schedule(){
     const sk = S.skips.find(s => q >= s.from - EPS && q < s.to - .5);
     if (sk){ seek(secOf(sk.to)); return; }
   }
-  if (now >= totalSec() + .3){ pause(); S.pos0 = totalSec(); render(); }
+  if (now >= totalSec() + .3){ pause(); S.pos0 = totalSec(); render(); if (S.cont) playNext(); }
 }
 
 /* ================= rendering ================= */
@@ -1123,7 +1154,7 @@ function defaultPartIndex(song){
   let best = 0; song.parts.forEach((p, i) => { if (p.lyricCount > song.parts[best].lyricCount) best = i; });
   return best;
 }
-function applySong(song, id, name){
+async function applySong(song, id, name){
   pause();
   S.song = song; S.songId = id;
   S.songName = song.title || name;
@@ -1141,19 +1172,19 @@ function applySong(song, id, name){
   selectPart(S.part);
   store.set("lf.last", id);
   updateVoiceUi();
-  if (id !== "demo") DB.get("voice:" + id).then(rec => { if (rec && S.songId === id) attachVoice(rec.blob, rec.name); });
+  if (id !== "demo"){ const rec = await DB.get("voice:" + id); if (rec && S.songId === id) attachVoice(rec.blob, rec.name); }
 }
 function detachVoice(){
   if (!S.voice) return;
-  try { S.voice.el.pause(); if (S.voice.gain) S.voice.gain.disconnect(); } catch(e){}
+  try { voiceEl.pause(); voiceEl.removeAttribute("src"); voiceEl.load(); } catch(e){}
   URL.revokeObjectURL(S.voice.url);
   S.voice = null;
 }
 function attachVoice(blob, name){
   if (S.playing) pause();
   detachVoice();
-  const url = URL.createObjectURL(blob), el = new Audio();
-  el.preload = "auto"; el.setAttribute("playsinline", ""); el.src = url;
+  const url = URL.createObjectURL(blob), el = getVoiceEl();
+  el.src = url;
   S.voice = { el, url, name };
   connectVoice();
   updateVoiceUi();
@@ -1212,7 +1243,7 @@ function selectPart(i){
 async function openBytes(buf, name, id){
   const xml = await bytesToXml(buf);
   const song = buildSong(xml);
-  applySong(song, id, name);
+  await applySong(song, id, name);
 }
 
 /* ---- tiny song library (IndexedDB) ---- */
@@ -1226,16 +1257,41 @@ const DB = {
   clear(){ return new Promise(res => { if (!this.db) return res(false); try { const r = this.tx("readwrite").clear(); r.onsuccess = () => res(true); r.onerror = () => res(false); } catch(e){ res(false); } }); }
 };
 
-// Only the most recently opened song is kept, so the app reopens where you left off.
-// Organizing song files is left to the phone's own file app.
+/* ---- practice list: songs kept on this phone ----
+   records: "song:<id>" {data, name} · "voice:<id>" {blob, name} · "list" {items:[{songId, name, audio}]} · "last" {songId} */
 async function loadDemo(){ await openBytes(new TextEncoder().encode(demoXml()).buffer, "サンプル曲（Evening Song）", "demo"); }
+async function getList(){ const r = await DB.get("list"); return r ? r.items : []; }
+async function saveList(items){ await DB.put({ id: "list", items }); }
+async function registerSong(songId, name, data, items){
+  const own = !items; items = items || await getList();
+  await DB.put({ id: "song:" + songId, songId, name, data });
+  const it = items.find(x => x.songId === songId);
+  if (it) it.name = name; else items.push({ songId, name, audio: null });
+  if (own) await saveList(items);
+  return items;
+}
+async function setListAudio(songId, audioName){
+  const items = await getList(), it = items.find(x => x.songId === songId);
+  if (it){ it.audio = audioName; await saveList(items); }
+}
+async function loadSongById(songId){
+  const rec = await DB.get("song:" + songId); if (!rec) return false;
+  await openBytes(rec.data, rec.name, songId);
+  await DB.put({ id: "last", songId });
+  return true;
+}
 async function loadLast(){
   const rec = await DB.get("last"); if (!rec) return false;
-  await openBytes(rec.data, rec.name, rec.songId); return true;
+  if (rec.data){   // an older version kept just this one song: carry it into the practice list
+    const items = await registerSong(rec.songId, rec.name, rec.data);
+    const v = await DB.get("voice:" + rec.songId);
+    if (v){ const it = items.find(x => x.songId === rec.songId); it.audio = v.name; await saveList(items); }
+  }
+  return loadSongById(rec.songId);
 }
 function showErr(msg){ const e = $("err"); e.textContent = msg; e.hidden = !msg; }
 // 楽譜 (score) and 音源 (audio) are picked separately; the audio belongs to the open score
-$("fileIn").addEventListener("change", async ev => {
+const onScorePicked = async ev => {
   const score = ev.target.files[0]; ev.target.value = "";
   if (!score) return;
   showErr("");
@@ -1244,15 +1300,16 @@ $("fileIn").addEventListener("change", async ev => {
     const name = score.name.replace(/\.(mxl|musicxml|xml)$/i, "");
     const songId = "f:" + name;
     await openBytes(buf, name, songId);
-    const prev = await DB.get("last");
-    if (!prev || prev.songId !== songId) await DB.clear();   // a new song drops the old song and its audio
-    await DB.put({ id: "last", songId, name, data: buf });
+    await registerSong(songId, S.songName, buf);
+    await DB.put({ id: "last", songId });
     closeSheets();
   } catch(e){
     showErr(e.message === "timewise" ? "この形式（score-timewise）にはまだ対応していません。MuseScoreで開き直して MusicXML として書き出してください。"
       : "楽譜を読み込めませんでした。MuseScoreなどの「書き出し → MusicXML」で作った .mxl か .musicxml ファイルを選んでください。");
   }
-});
+};
+$("fileIn").addEventListener("change", onScorePicked);
+$("fileInAny").addEventListener("change", onScorePicked);
 $("audioIn").addEventListener("change", async ev => {
   const audio = ev.target.files[0]; ev.target.value = "";
   if (!audio || !S.song) return;
@@ -1260,13 +1317,91 @@ $("audioIn").addEventListener("change", async ev => {
   if (audio.type && !new Audio().canPlayType(audio.type)){ showErr("この音源はこの端末では再生できません。mp3 か wav を選んでください。"); return; }
   attachVoice(audio, audio.name);
   await DB.put({ id: "voice:" + S.songId, blob: audio, name: audio.name });
+  await setListAudio(S.songId, audio.name);
   closeSheets();
 });
 $("voiceDel").onclick = async () => {
   if (S.playing) pause();
   detachVoice(); await DB.del("voice:" + S.songId);
-  updateVoiceUi(); render();
+  await setListAudio(S.songId, null);
+  updateVoiceUi(); render(); renderList();
 };
+
+const SCORE_EXT = /\.(mxl|musicxml|xml)$/i, AUDIO_EXT = /\.(mp3|wav|m4a|aac|ogg|oga|flac|aif|aiff|caf)$/i;
+async function renderList(){
+  const items = await getList(), box = $("songList");
+  box.innerHTML = "";
+  $("listEmpty").hidden = items.length > 0;
+  items.forEach((it, i) => {
+    const row = document.createElement("div"); row.className = "srow" + (it.songId === S.songId ? " cur" : "");
+    const open = document.createElement("button"); open.type = "button"; open.className = "sname";
+    open.innerHTML = `<span class="t"></span>${it.audio ? '<span class="tag">音源</span>' : ""}`;
+    open.querySelector(".t").textContent = it.name;
+    open.onclick = async () => { if (await loadSongById(it.songId)) closeSheets(); };
+    const up = document.createElement("button"); up.type = "button"; up.className = "sbtn"; up.textContent = "↑"; up.disabled = i === 0;
+    up.setAttribute("aria-label", it.name + " を上へ");
+    up.onclick = async () => { [items[i - 1], items[i]] = [items[i], items[i - 1]]; await saveList(items); renderList(); };
+    const down = document.createElement("button"); down.type = "button"; down.className = "sbtn"; down.textContent = "↓"; down.disabled = i === items.length - 1;
+    down.setAttribute("aria-label", it.name + " を下へ");
+    down.onclick = async () => { [items[i + 1], items[i]] = [items[i], items[i + 1]]; await saveList(items); renderList(); };
+    const del = document.createElement("button"); del.type = "button"; del.className = "sbtn del"; del.textContent = "削除";
+    let armed = null;
+    del.onclick = async () => {
+      if (!del.classList.contains("arm")){
+        del.classList.add("arm"); del.textContent = "もう一度";
+        armed = setTimeout(() => { del.classList.remove("arm"); del.textContent = "削除"; }, 3000); return;
+      }
+      clearTimeout(armed);
+      await DB.del("song:" + it.songId); await DB.del("voice:" + it.songId);
+      await saveList(items.filter(x => x.songId !== it.songId));
+      renderList();
+    };
+    row.append(open, up, down, del);
+    box.appendChild(row);
+  });
+}
+// register several songs at once: scores, plus audio files whose name matches a score's name
+$("bulkIn").addEventListener("change", async ev => {
+  const files = [...ev.target.files]; ev.target.value = "";
+  if (!files.length) return;
+  const msg = $("bulkMsg"); msg.hidden = false; msg.textContent = "登録しています…";
+  const items = await getList(), problems = [];
+  let scores = 0, audios = 0;
+  for (const f of files.filter(f => SCORE_EXT.test(f.name))){
+    try {
+      const buf = await f.arrayBuffer();
+      const song = buildSong(await bytesToXml(buf));
+      const base = f.name.replace(SCORE_EXT, "");
+      await registerSong("f:" + base, song.title || base, buf, items);
+      scores++;
+    } catch(e){ problems.push(f.name + "（楽譜として読めません）"); }
+  }
+  for (const a of files.filter(f => !SCORE_EXT.test(f.name))){
+    if (!AUDIO_EXT.test(a.name) && !/^audio\//.test(a.type)){ problems.push(a.name + "（楽譜でも音源でもありません）"); continue; }
+    const base = a.name.replace(AUDIO_EXT, "").trim().toLowerCase();
+    const it = items.find(x => x.songId.slice(2).trim().toLowerCase() === base);
+    if (!it){ problems.push(a.name + "（同じ名前の楽譜がありません）"); continue; }
+    await DB.put({ id: "voice:" + it.songId, blob: a, name: a.name });
+    it.audio = a.name; audios++;
+    if (it.songId === S.songId) attachVoice(a, a.name);
+  }
+  await saveList(items);
+  msg.textContent = `楽譜 ${scores}曲、音源 ${audios}件を登録しました。` + (problems.length ? `\n登録できなかったもの：${problems.join("、")}` : "");
+  renderList();
+});
+S.cont = store.get("lf.cont", false);
+$("contPlay").checked = S.cont;
+$("contPlay").onchange = e => { S.cont = e.target.checked; store.set("lf.cont", S.cont); };
+// continuous play: after a song ends, open the next song in the list and start it
+async function playNext(){
+  const items = await getList(), i = items.findIndex(x => x.songId === S.songId);
+  const next = items[i + 1];
+  if (i < 0 || !next) return;
+  await new Promise(r => setTimeout(r, 1500));   // a breath between songs
+  if (S.playing || !S.cont) return;              // the viewer did something meanwhile
+  if (await loadSongById(next.songId)) play();
+}
+try { navigator.storage?.persist?.().catch(() => {}); } catch(e){}   // ask the browser not to clear saved songs
 
 /* ================= demo score (original, for trying the app) ================= */
 function demoXml(){
@@ -1479,7 +1614,7 @@ $("lyrPdf").onclick = () => {
   try { window.print(); } catch(e){}
   setTimeout(() => { document.title = t; }, 1000);
 };
-$("songBtn").onclick = () => openSheet("libScrim");
+$("songBtn").onclick = () => { $("bulkMsg").hidden = true; renderList(); openSheet("libScrim"); };
 $("demoBtn").onclick = async () => { await loadDemo(); closeSheets(); };
 $("setBtn").onclick = () => openSheet("setScrim");
 document.querySelectorAll("[data-close]").forEach(b => b.onclick = closeSheets);

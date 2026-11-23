@@ -19,6 +19,7 @@ html{-webkit-text-size-adjust:100%}
 /* no stray one-character lines: break Japanese at phrase boundaries and balance the last line */
 body{word-break:auto-phrase;line-break:strict;text-wrap:pretty}
 .key,code,th{word-break:keep-all}
+code{font-family:var(--font-ui);font-size:.92em;background:#eef8f9;border-radius:4px;padding:0 4px}
 body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--font-ui);font-size:16px;line-height:1.8;padding-inline:max(16px, env(safe-area-inset-left,0px)) max(16px, env(safe-area-inset-right,0px))}
 main{max-width:640px;margin:0 auto;padding-block:0 48px}
 header{background:var(--ground);margin-inline:calc(-1 * max(16px, env(safe-area-inset-left,0px)));padding:calc(28px + env(safe-area-inset-top,0px)) 20px 26px;display:flex;gap:16px;align-items:center}
@@ -77,7 +78,9 @@ th{white-space:nowrap;width:7.5em}
 footer{margin-top:40px;font-size:12px;color:var(--soft)}
 @media print{
   @page{size:A4;margin:14mm 14mm}
-  body{font-size:11.5pt;padding:0}
+  body{font-size:11pt;padding:0;line-height:1.7}
+  footer{margin-top:14px}
+  h2{margin-top:26px}
   header{margin:0 0 6mm;border-radius:10px;padding:18px 20px}
   .open{display:none}
   h2{break-after:avoid}
@@ -104,6 +107,7 @@ footer{margin-top:40px;font-size:12px;color:var(--soft)}
   <li><b>伸ばす長さがわかる</b> … 2拍以上伸ばす音は〇の数で長さを表し、1拍ごとに●に変わります。</li>
   <li><b>強弱記号・音楽記号</b> … 今の強弱（<i>p</i>、<i>mf</i> など）を常に表示。次の強弱は2小節前から「NEXT」に出ます。クレッシェンド、rit.、フェルマータなども、その間だけ表示されます。</li>
   <li><b>練習に便利な操作</b> … パートの切り替え、ゆっくり再生、歌い出しへのジャンプ、前奏・間奏のスキップ、メトロノーム。</li>
+  <li><b>練習リスト・連続再生</b> … 開いた曲はスマホに保存され、次からはリストから選ぶだけ。曲が終わったら次の曲へ続けて再生することもできます。</li>
   <li><b>歌詞・発想記号の書き出し</b> … 自分のパートの歌詞と、楽譜の発想記号（英語の指示など）をテキストやPDFにできます。翻訳のメモなどに使えます。</li>
 </ul>
 
@@ -122,6 +126,7 @@ footer{margin-top:40px;font-size:12px;color:var(--soft)}
   <li><b>パートを選ぶ</b>画面右上の <span class="key">パート</span> をタップして、自分のパートを選びます。</li>
   <li><b>▶ で再生</b>あとは再生して、画面を見ながら歌うだけです。</li>
 </ol>
+<p>一度開いた曲は「練習リスト」に入るので、2回目からは楽譜や音源を選び直す必要はありません。</p>
 
 <div class="note"><b>ファイルがスマホに入っていないとき</b><br>
 楽譜・音源は合唱団のGoogleドライブにあります。ファイルを選ぶ画面で「Googleドライブ」を選べば、そのまま開けます。<br>
@@ -169,6 +174,15 @@ iPhoneでドライブが出てこない場合は、Googleドライブのアプ�
   <tr><th>バー</th><td>動かすと、好きな位置へ移動できます。</td></tr>
 </table>
 
+<h2>練習リスト（画面上の曲名をタップ）</h2>
+<table>
+  <tr><th>曲を選ぶ</th><td>曲名をタップすると、その曲に切り替わります。付けた音源やパートの設定もそのまま残っています。</td></tr>
+  <tr><th>↑ ↓</th><td>曲の順番を入れ替えます。連続再生はこの順番で進みます。</td></tr>
+  <tr><th>削除</th><td>2回続けて押すと、その曲をリストから消します。元のファイルは消えません。</td></tr>
+  <tr><th>連続再生</th><td>オンにすると、曲が終わったら次の曲を開いて続けて再生します。</td></tr>
+  <tr><th>まとめて登録</th><td>楽譜と音源を一度にたくさん選んで登録できます。ファイル名が同じ楽譜と音源は、セットとして登録されます（例：<code>1.Prologue.mxl</code> と <code>1.Prologue.mp3</code>）。</td></tr>
+</table>
+
 <h2>設定（右上の つまみのマーク）</h2>
 <table>
   <tr><th>鳴らすパート</th><td>合成音で鳴らすパートを、タップでオン・オフできます。曲を初めて開いたときは、伴奏と「曲を開いたときのパート」だけがオンです。「すべてオン」「すべてオフ」でまとめて切り替えることもできます。</td></tr>
@@ -182,8 +196,10 @@ iPhoneでドライブが出てこない場合は、Googleドライブのアプ�
 <h2>こまったとき</h2>
 <h3>音が出ない（iPhone）</h3>
 <p>本体の横の消音スイッチ（マナーモード）がオンになっていないか確認してください。</p>
-<h3>前に開いた曲が消えた</h3>
-<p>アプリが覚えているのは、最後に開いた1曲（と、その音源）だけです。別の曲は、そのつど楽譜・音源を選び直してください。</p>
+<h3>再生が止まった</h3>
+<p>スマホの画面が消えると、再生も止まります。連続再生で聞き続けるときは、画面をつけたままにしてください。</p>
+<h3>練習リストの曲が消えた</h3>
+<p>スマホの空き容量が少ないと、保存した曲が消えることがあります。もう一度、楽譜と音源を登録してください。音源は wav より mp3 のほうが容量を使いません。</p>
 <h3>音源が再生できない</h3>
 <p>mp3 か wav のファイルを選んでください。</p>
 <h3>歌詞が出ない</h3>
