@@ -767,31 +767,44 @@ function silentWavUrl(){
 function ensureAudio(){
   if (!ctx){
     const AC = window.AudioContext || window.webkitAudioContext;
-    ctx = new AC();
+    // "playback" asks phones for a larger output buffer: fewer dropouts under load; the extra delay is
+    // allowed for in heardTime(), and every sound is scheduled ahead, so nothing lands late
+    try { ctx = new AC({ latencyHint: "playback" }); } catch(e){ ctx = new AC(); }
     const comp = ctx.createDynamicsCompressor();
     master = ctx.createGain(); master.gain.value = .55;
     master.connect(comp); comp.connect(ctx.destination);
     try { unlockEl = new Audio(silentWavUrl()); unlockEl.loop = true; unlockEl.setAttribute("playsinline", ""); } catch(e){}
   }
-  connectVoice();
   if (ctx.state !== "running") ctx.resume();
   try { unlockEl && unlockEl.play().catch(() => {}); } catch(e){}
 }
-// route the recording through Web Audio so it shares one clock and output path with the synth
-// One <audio> element serves every song: iOS lets a page keep playing an element the user once started,
-// so swapping its source lets continuous play move to the next song without a fresh tap.
-let voiceEl = null, voiceGain = null;
-function getVoiceEl(){
-  if (!voiceEl){ voiceEl = new Audio(); voiceEl.preload = "auto"; voiceEl.setAttribute("playsinline", ""); }
-  return voiceEl;
+// The recording is decoded once and played as a Web Audio buffer, started at the exact same clock
+// time as the score. Synth, metronome, recording and display then share one sample-accurate clock:
+// no drift and no after-the-fact correction (phones report an <audio> element's position too coarsely).
+// Stereo is folded to mono to halve the memory a long song takes.
+function decodeVoice(blob){
+  ensureAudio();
+  return blob.arrayBuffer().then(ab => new Promise((ok, ng) => {
+    const p = ctx.decodeAudioData(ab, ok, ng);
+    if (p && p.then) p.then(ok, ng);
+  })).then(b => {
+    if (b.numberOfChannels < 2) return b;
+    const m = ctx.createBuffer(1, b.length, b.sampleRate), o = m.getChannelData(0), n = b.numberOfChannels;
+    for (let c = 0; c < n; c++){ const d = b.getChannelData(c); for (let i = 0; i < d.length; i++) o[i] += d[i] / n; }
+    return m;
+  });
 }
-function connectVoice(){
-  if (!ctx || !voiceEl || voiceGain) return;
+// the context time whose sound is reaching the speaker right now (smooth between audio callbacks)
+function heardTime(){
+  const est = ctx.currentTime - (ctx.outputLatency || 0) - (ctx.baseLatency || 0);
   try {
-    const src = ctx.createMediaElementSource(voiceEl);
-    voiceGain = ctx.createGain();
-    src.connect(voiceGain); voiceGain.connect(ctx.destination);
+    const ts = ctx.getOutputTimestamp && ctx.getOutputTimestamp();
+    if (ts && ts.contextTime > 0 && ts.performanceTime > 0){
+      const t = ts.contextTime + (performance.now() - ts.performanceTime) / 1000;
+      if (Math.abs(t - est) < .5) return t;
+    }
   } catch(e){}
+  return est;
 }
 const live = new Set();
 function voiceNote(when, dur, midi, gain, kind){
@@ -887,18 +900,25 @@ S.metro = false;                                 // metronome click, off on ever
 function totalSec(){ return secOf(S.song.totalQ); }
 function nowSec(){ return S.playing ? S.pos0 + (ctx.currentTime - S.t0) * S.speed : S.pos0; }
 
-let schedTimer = null, lastSync = 0;
+let schedTimer = null;
 function play(){
   if (!S.song) return;
   ensureAudio();
+  // the recording is still being decoded: start as soon as it is ready
+  if (S.voice && !S.voice.buf){
+    const v = S.voice;
+    if (!v.waiting){ v.waiting = true; setPlayIcon(); v.ready.then(() => { if (S.voice === v && v.waiting){ v.waiting = false; play(); } }); }
+    return;
+  }
   if (S.pos0 >= totalSec() - .05) S.pos0 = 0;
-  S.t0 = ctx.currentTime + .08;
+  S.t0 = ctx.currentTime + .12;
   S.playing = true;
   if (S.voice){
-    const v = S.voice.el;
-    v.playbackRate = S.speed; v.preservesPitch = true; v.webkitPreservesPitch = true;
-    try { v.currentTime = Math.max(0, S.pos0); } catch(e){}
-    v.play().catch(() => {});
+    const src = ctx.createBufferSource();
+    src.buffer = S.voice.buf; src.playbackRate.value = S.speed; src.connect(ctx.destination);
+    const off = Math.max(0, S.pos0);
+    if (off < S.voice.buf.duration) src.start(S.t0, off);
+    S.voice.src = src;
   }
   primeIndexes(true);
   schedTimer = setInterval(schedule, 30);
@@ -906,20 +926,19 @@ function play(){
   try { navigator.wakeLock?.request("screen").then(l => S.lock = l).catch(() => {}); } catch(e){}
   setPlayIcon(); loop();
 }
+function stopVoiceSrc(){
+  const v = S.voice; if (!v || !v.src) return;
+  try { v.src.stop(); } catch(e){}
+  try { v.src.disconnect(); } catch(e){}
+  v.src = null;
+}
 function pause(){
+  if (S.voice && S.voice.waiting){ S.voice.waiting = false; setPlayIcon(); }
   if (!S.playing) return;
   S.pos0 = nowSec(); S.playing = false;
-  clearInterval(schedTimer); hushAll();
-  if (S.voice) S.voice.el.pause();
+  clearInterval(schedTimer); hushAll(); stopVoiceSrc();
   try { S.lock?.release(); } catch(e){}
   setPlayIcon(); render();
-}
-// the recording is the master clock: nudge the score clock toward it when they drift apart
-function syncToVoice(){
-  const v = S.voice && S.voice.el;
-  if (!v || v.paused || v.ended || v.readyState < 2) return;
-  const d = v.currentTime - nowSec();
-  if (Math.abs(d) > .06 && performance.now() - lastSync > 250){ S.t0 -= d / S.speed; lastSync = performance.now(); }
 }
 // stretches where the chosen part is silent for a long time (intro / interludes)
 function buildSkips(){
@@ -960,7 +979,7 @@ function prevEntry(){
 }
 function seek(sec){
   const was = S.playing;
-  if (was){ clearInterval(schedTimer); hushAll(); S.playing = false; }
+  if (was){ clearInterval(schedTimer); hushAll(); stopVoiceSrc(); S.playing = false; }
   S.pos0 = Math.max(0, Math.min(totalSec(), sec));
   if (was) play(); else render();
 }
@@ -998,7 +1017,6 @@ function schedule(){
     const n = m.notes[m.idx++];
     if (S.metro) click(Math.max(ctx.currentTime, S.t0 + (n.t - S.pos0) / S.speed), n.down);
   }
-  syncToVoice();
   if (S.autoSkip && S.skips){
     const q = qOf(now);
     const sk = S.skips.find(s => q >= s.from - EPS && q < s.to - .5);
@@ -1023,8 +1041,7 @@ function render(){
   if (!S.song) return;
   const song = S.song, tr = S.track;
   // while playing, show what is being heard: allow for the device's audio output delay (e.g. Bluetooth)
-  const lat = S.playing && ctx ? (ctx.outputLatency || 0) + (ctx.baseLatency || 0) : 0;
-  const sec = Math.max(0, nowSec() - lat * S.speed), q = qOf(sec);
+  const sec = Math.max(0, S.playing && ctx ? S.pos0 + (heardTime() - S.t0) * S.speed : S.pos0), q = qOf(sec);
   const started = S.playing || S.pos0 > 0;
   const k = measureAt(q);
 
@@ -1134,7 +1151,7 @@ function fitWord(text){
 window.addEventListener("resize", () => { last.word = null; render(); });
 
 function setPlayIcon(){
-  $("playIco").innerHTML = S.playing ? '<rect x="8" y="6" width="5.5" height="20" rx="1.5" fill="currentColor"/><rect x="18.5" y="6" width="5.5" height="20" rx="1.5" fill="currentColor"/>' : '<path d="M10 6l17 10-17 10z" fill="currentColor"/>';
+  $("playIco").innerHTML = (S.playing || (S.voice && S.voice.waiting)) ? '<rect x="8" y="6" width="5.5" height="20" rx="1.5" fill="currentColor"/><rect x="18.5" y="6" width="5.5" height="20" rx="1.5" fill="currentColor"/>' : '<path d="M10 6l17 10-17 10z" fill="currentColor"/>';
   $("playBtn").setAttribute("aria-label", S.playing ? "一時停止" : "再生");
 }
 
@@ -1176,17 +1193,21 @@ async function applySong(song, id, name){
 }
 function detachVoice(){
   if (!S.voice) return;
-  try { voiceEl.pause(); voiceEl.removeAttribute("src"); voiceEl.load(); } catch(e){}
-  URL.revokeObjectURL(S.voice.url);
+  stopVoiceSrc();
+  S.voice.waiting = false;
   S.voice = null;
+  setPlayIcon();
 }
 function attachVoice(blob, name){
   if (S.playing) pause();
   detachVoice();
-  const url = URL.createObjectURL(blob), el = getVoiceEl();
-  el.src = url;
-  S.voice = { el, url, name };
-  connectVoice();
+  const v = { name, buf: null, src: null, waiting: false };
+  v.ready = decodeVoice(blob).then(buf => { v.buf = buf; }, () => {
+    if (S.voice !== v) return;
+    detachVoice(); updateVoiceUi();
+    showErr("この音源はこの端末では再生できません。mp3 か wav を選んでください。");
+  });
+  S.voice = v;
   updateVoiceUi();
 }
 function updateVoiceUi(){
@@ -1447,7 +1468,7 @@ function demoXml(){
 
 /* ================= wiring ================= */
 let seeking = false;
-$("playBtn").onclick = () => S.playing ? pause() : play();
+$("playBtn").onclick = () => (S.playing || (S.voice && S.voice.waiting)) ? pause() : play();
 function paintSpeed(){ $("speedBtn").textContent = "×" + S.speed; }
 function setSpeed(v){
   const cur = nowSec();
